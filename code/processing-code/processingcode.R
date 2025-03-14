@@ -11,7 +11,7 @@
 
 
 ## ---- packages --------
-#load needed packages. make sure they are installed.
+#Load required packages
 library(readxl) #for loading Excel files
 library(dplyr) #for data processing/cleaning
 library(tidyr) #for data processing/cleaning
@@ -19,48 +19,93 @@ library(skimr) #for nice visualization of data
 library(here) #to set paths
 
 
-## ---- loaddata --------
-#path to data
-#note the use of the here() package and not absolute paths
-data_location <- here::here("data","raw-data","exampledata.xlsx")
-#load data. 
-#note that for functions that come from specific packages (instead of base R)
-# I often specify both package and function like so
-#package::function() that's not required one could just call the function
-#specifying the package makes it clearer where the function "lives",
-#but it adds typing. You can do it either way.
-rawdata <- readxl::read_excel(data_location)
-# We might also want to load the codebook to look at it
-codebook <- readxl::read_excel(data_location, sheet ="Codebook")
+## ---- load-data --------
+#Set data paths
+full_data <- here::here("data","raw-data","creek_1-3day_avg_weather_2021-2023.xlsx")
 
+#Load data from individual sheets in full data
+#Note: Weather data includes daily weather measurements, three day averages from the date of sampling, and monthly averages
+#I will look at just weather on the day of sampling
+
+#CRISPR Sero-Seq data (Salmonella serovar distributions) from each sampling date/location 
+css_raw <- readxl::read_excel(full_data, sheet = "CREEK1")
+
+#Weather data for system A
+weatherA_raw <- readxl::read_excel(full_data, sheet = "GAINES 1 DAY")
+
+#Weather data for system B
+weatherB_raw <- readxl::read_excel(full_data, sheet = "WATHORT 1 DAY ")
+
+#Weather data for systems C and D
+#Note: The weather tower that was nearest systems C and D was the same
+weatherCD_raw <- readxl::read_excel(full_data, sheet = "WATUGA 1 DAY ")
 
 ## ---- exploredata --------
-#take a look at the data
-dplyr::glimpse(rawdata)
-#another way to look at the data
-summary(rawdata)
-#yet another way to get an idea of the data
-head(rawdata)
-#this is a nice way to look at data
-skimr::skim(rawdata)
-#look in the Codebook for a variable explanation
-print(codebook)
+#Take a look at the data
+dplyr::glimpse(css_raw)
+
+#Summary
+summary(css_raw)
+
+#Skim
+skimr::skim(css_raw)
+
+#Weather A
+glimpse(weatherA_raw)
+summary(weatherA_raw)
+skim(weatherA_raw)
+
+#Weather B
+glimpse(weatherB_raw)
+summary(weatherB_raw)
+skim(weatherB_raw)
+
+#Weather CD
+glimpse(weatherCD_raw)
+summary(weatherCD_raw)
+skim(weatherCD_raw)
+
+## ---- clean-data-1 --------
+#With the css data, I would only like to focus my analysis on Salmonella serovars found in all systems
+
+#Replace all NAs with 0
+css <- css_raw %>%
+  mutate_all(~replace(., is.na(.), 0))
+
+#Identify columns containing serovar information
+serovar_cols <- colnames(css)[-(1:5)]
+
+#Change all character vectors to numeric vectors
+css <- css %>%
+  mutate(across(all_of(serovar_cols), ~ if(is.character(.)) as.numeric(.) else .))
+
+#Find serovars present in each system
+# serovars_in_systems <- css %>%
+#   group_by(System) %>%
+#   summarise(across(all_of(serovar_cols), ~ any(. > 0), .names = "present_{.col}")) %>%
+#   summarise(across(starts_with("present_"), all))  #Keep only serovars found in all systems
+# 
+# #Extract serovar names present in all 4 systems
+# common_serovars <- names(serovars_in_systems)[which(serovars_in_systems[1, ]==TRUE)]
+# common_serovars <- gsub("present_", "", common_serovars) #Remove prefix to get original name
+# common_serovars #Display common serovar names
+# 
+# #Filter based on common serovars
+# css <- css %>%
+#   select(1:5, all_of(common_serovars)
+
+#Count occurances of each serovar in each system
+serovars_in_systems <- css %>%
+  group_by(System) %>%
+  summarize(across(all_of(serovar_cols), ~ sum(. > 0), .names = ".count_{.col}"))
+
+#Find serovars present at least 5 times in each system
+serovars_meeting_criteria <- serovars_in_systems %>%
+  summarize(across(starts_with("count_"), ~ all(. >= 5))) %>%
+  select(where(~ . == TRUE))
 
 
-## ---- cleandata1 --------
-# Inspecting the data, we find some problems that need addressing:
-# First, there is an entry for height which says "sixty" instead of a number. 
-# Does that mean it should be a numeric 60? It somehow doesn't make
-# sense since the weight is 60kg, which can't happen for a 60cm person (a baby)
-# Since we don't know how to fix this, we might decide to remove the person.
-# This "sixty" entry also turned all Height entries into characters instead of numeric.
-# That conversion to character also means that our summary function isn't very meaningful.
-# So let's fix that first.
-d1 <- rawdata %>% dplyr::filter( Height != "sixty" ) %>% 
-                  dplyr::mutate(Height = as.numeric(Height))
-# look at partially fixed data again
-skimr::skim(d1)
-hist(d1$Height)
+
 
 
 ## ---- cleandata2 --------
