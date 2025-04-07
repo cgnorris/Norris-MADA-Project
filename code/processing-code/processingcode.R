@@ -17,6 +17,8 @@ library(dplyr) #for data processing/cleaning
 library(tidyr) #for data processing/cleaning
 library(skimr) #for nice visualization of data 
 library(here) #to set paths
+library(lubridate) #for date formatting
+library(psych) #for correlation analysis
 
 
 ## ---- load-data --------
@@ -65,7 +67,7 @@ glimpse(weatherCD_raw)
 summary(weatherCD_raw)
 skim(weatherCD_raw)
 
-## ---- clean-data-1 --------
+## ---- clean-css-data --------
 #With the css data, I would only like to focus my analysis on Salmonella serovars found in all systems
 
 #Replace all NAs with 0
@@ -94,90 +96,114 @@ css <- css %>%
 # css <- css %>%
 #   select(1:5, all_of(common_serovars)
 
-#Count occurances of each serovar in each system
+#Compute correlation matrix for serovars to find co-occurring serovars
+sero_only <- as.matrix(select(css, -c(ID, Month, Site, System, Season))) #Only serovar proportions
+sero_corr <- psych::corr.test(sero_only, method = "spearman")
+
+#Converting results of correlation matrix into more accessible format
+ut <- upper.tri(sero_corr$r) #Denote upper half of correlation matrix, will remove redundancy
+sero_corr_format <- data.frame(
+  row = rownames(sero_corr$r)[row(sero_corr$r)[ut]],
+  column = rownames(sero_corr$r)[col(sero_corr$r)[ut]],
+  cor = sero_corr$r[ut],
+  p = sero_corr$p[ut]
+)
+#Filter correlations to only include p-values below 0.05
+sero_corr_format <- sero_corr_format %>%
+  filter(p <= 0.05)
+
+#Count occurrences of each serovar in each system
 serovars_in_systems <- css %>%
   group_by(System) %>%
-  summarize(across(all_of(serovar_cols), ~ sum(. > 0), .names = ".count_{.col}"))
+  summarize(across(all_of(serovar_cols), ~ sum(. > 0), .names = "count_{.col}"))
 
 #Find serovars present at least 5 times in each system
 serovars_meeting_criteria <- serovars_in_systems %>%
-  summarize(across(starts_with("count_"), ~ all(. >= 5))) %>%
-  select(where(~ . == TRUE))
+  summarize(across(starts_with("count_"), ~ all(. >= 5)))
 
+#Extract the serovar names that meet the criteria
+serovars_to_keep <- names(serovars_meeting_criteria)[which(serovars_meeting_criteria[1, ] == TRUE)]
+serovars_to_keep <- gsub("count_", "", serovars_to_keep) # Remove prefix to get original names
+serovars_to_keep
 
+#Cross-reference serovars that meet criteria with serovars that were correlated together
+sero_corr_format <- sero_corr_format %>%
+  filter(row %in% serovars_to_keep | column %in% serovars_to_keep)
+#Of the four serovars that occur 5+ times in each system, Give I and Muenchen I are correlated
+#with Infantis. Muenchen I is also correlated with Aqua/Inverness I will add these three 
+#serovars to the processed data. Of note, Give I is also correlated with Rubislaw, which also
+#occurs 5+ times in each system
 
+#Get unique row and column names that are not already in the list of serovars to keep
+rows_not_in_list <- setdiff(unique(sero_corr_format$row), serovars_to_keep)
+cols_not_in_list <- setdiff(unique(sero_corr_format$column), serovars_to_keep)
+all_not_in_list <- union(rows_not_in_list, cols_not_in_list) #Combine
 
+#Filter the original data based on the identified serovars
+filtered_css <- css %>%
+  select(1:5, all_of(c(serovars_to_keep, all_not_in_list)))
 
-## ---- cleandata2 --------
-# Now we see that there is one person with a height of 6. 
-# that could be a typo, or someone mistakenly entered their height in feet.
-# If we don't know, we might need to remove this person.
-# But let's assume that we somehow know that this is meant to be 6 feet, so we can convert to centimeters.
-d2 <- d1 %>% dplyr::mutate( Height = replace(Height, Height=="6",round(6*30.48,0)) )
-#height values seem ok now
-skimr::skim(d2)
+#Add binary variables for each serovar that indicate presence/absence
+filtered_css <- filtered_css %>%
+  mutate(`Give I Prev` = ifelse(`Give I` > 0, 1, 0)) %>%
+  mutate(`Muenchen I Prev` = ifelse(`Muenchen I` > 0, 1, 0)) %>%
+  mutate(`Rubislaw Prev` = ifelse(Rubislaw > 0, 1, 0)) %>%
+  mutate(`Typhimurium Prev` = ifelse(Typhimurium > 0, 1, 0)) %>%
+  mutate(`Aqua/Inverness Prev` = ifelse(`Aqua/Inverness` > 0, 1, 0)) %>%
+  mutate(`Infantis Prev` = ifelse(Infantis > 0, 1, 0))
 
+## ---- clean-weather-data --------
+#Goal: incorporate weather data into css data
 
-## ---- cleandata3 --------
-# now let's look at weight
-# there is a person with weight of 7000, which is impossible,
-# and one person with missing weight.
-# Note that the original data had an empty cell. 
-# The codebook says that's not allowed, it should have been NA.
-# R automatically converts empty values to NA.
-# If you don't want that, you can adjust it when you load the data.
-# to be able to analyze the data, we'll remove those individuals as well.
-# Note: Some analysis methods can deal with missing values, so it's not always necessary to remove them. 
-# This should be adjusted based on your planned analysis approach. 
-d3 <- d2 %>%  dplyr::filter(Weight != 7000) %>% tidyr::drop_na()
-skimr::skim(d3)
+#Define start date of the study
+start_date <- as.Date("2021-11-01")
 
+#Change date format in the css data (month of study -> yyyy/mm)
+filtered_css <- filtered_css %>%
+  mutate(Date = start_date %m+% months(filtered_css$Month)) %>%
+  mutate(YearMonth = format(Date, "%Y-%m"))
 
-## ---- cleandata4 --------
-# We also want to have Gender coded as a categorical/factor variable
-# we can do that with simple base R code to mix things up
-d3$Gender <- as.factor(d3$Gender)  
-skimr::skim(d3)
+#Define new data frames of the weather data for manipulation
+weatherA <- weatherA_raw
+weatherB <- weatherB_raw
+weatherCD <- weatherCD_raw
 
+#Change the date format of each of the weather datasets (year and day of year -> yyyy/mm)
+weatherA <- weatherA %>%
+  mutate(Date = as.Date(`Julian Day` - 1, origin = paste0(Year, "-01-01"))) %>%
+  mutate(YearMonth = format(Date, "%Y-%m"))
+weatherB <- weatherB %>%
+  mutate(Date = as.Date(`Julian Day` - 1, origin = paste0(Year, "-01-01"))) %>%
+  mutate(YearMonth = format(Date, "%Y-%m"))
+weatherCD <- weatherCD %>%
+  mutate(Date = as.Date(`Julian Day` - 1, origin = paste0(Year, "-01-01"))) %>%
+  mutate(YearMonth = format(Date, "%Y-%m"))
 
-## ---- cleandata5 --------
-#now we see that there is another NA, but it's not "NA" from R 
-#instead it was loaded as character and is now considered as a category.
-#There is also an individual coded as "N" which is not allowed.
-#This could be mistyped M or a mistyped NA. If we have a good guess, we could adjust.
-#If we don't we might need to remove that individual.
-#well proceed here by removing both the NA and N individuals
-#since this keeps an empty category, I'm also using droplevels() to get rid of it
-d4 <- d3 %>% dplyr::filter( !(Gender %in% c("NA","N")) ) %>% droplevels()
-skimr::skim(d4)
+#Separate css data by system
+cssA <- filter(filtered_css, System == "A")
+cssB <- filter(filtered_css, System == "B")
+cssCD <- filter(filtered_css, System == "C" | System == "D") #sites c and d kept together bc of shared weather station
 
+#Join the weather data with the css data
+siteA <- full_join(weatherA, cssA, by = "YearMonth") %>% na.omit()
+siteB <- full_join(weatherB, cssB, by = "YearMonth") %>% na.omit()
+siteCD <- full_join(weatherCD, cssCD, by = "YearMonth") %>% na.omit()
+
+#Check summaries of each combined site dataset
+summary(siteA)
+summary(siteB)
+summary(siteCD)
+
+#Remove redundant variables from site data
+siteA <- siteA %>% select(-c(...2, Date.x, Date.y))
+siteB <- siteB %>% select(-c(Date.x, Date.y, `Site ID`))
+siteCD <- siteCD %>% select(-c(Date.x, Date.y))
 
 ## ---- savedata --------
-# all done, data is clean now. 
-# Let's assign at the end to some final variable
-# makes it easier to add steps above
-processeddata <- d4
-# location to save file
+#Combine individual site datasets
+processed_data <- rbind(siteA, siteB, siteCD)
+
+#Location to save file
 save_data_location <- here::here("data","processed-data","processeddata.rds")
-saveRDS(processeddata, file = save_data_location)
+saveRDS(processed_data, file = save_data_location)
 
-
-
-## ---- notes --------
-# anything you don't want loaded into the Quarto file but 
-# keep in the R file, just give it its own label and then don't include that label
-# in the Quarto file
-
-# Dealing with NA or "bad" data:
-# removing anyone who had "faulty" or missing data is one approach.
-# it's often not the best. based on your question and your analysis approach,
-# you might want to do cleaning differently (e.g. keep individuals with some missing information)
-
-# Saving data as RDS:
-# I suggest you save your processed and cleaned data as RDS or RDA/Rdata files. 
-# This preserves coding like factors, characters, numeric, etc. 
-# If you save as CSV, that information would get lost.
-# However, CSV is better for sharing with others since it's plain text. 
-# If you do CSV, you might want to write down somewhere what each variable is.
-# See here for some suggestions on how to store your processed data:
-# http://www.sthda.com/english/wiki/saving-data-into-r-data-format-rds-and-rdata
