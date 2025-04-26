@@ -1,0 +1,172 @@
+---
+title: Norris Project Review 
+author: Natalie Cann
+date: April 22, 2025
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+---
+
+# Overview
+
+Title of project: Evaluating the Impact of Weather on Salmonella Prevalence and Serovar Diversity
+
+Name of project author(s):Connor Norris
+
+Name of project reviewer: Natalie Cann
+
+# Specific project content evaluation
+Evaluate the different parts of the project by filling in the sections below.
+
+
+## Background, Context and Motivation
+How well is the context of the project described? Is a comprehensive background, including summary of previous/related work given? Is the project well placed into the context of existing work (including proper referencing of existing work). Is it clear why the project was undertaken and what new information it hopes to provide?
+
+### Feedback and Comments
+
+As of right now, I only see a "Part 1" section in your manuscript. I will provide feedback for what you have written here.
+
+I do not see much of a background present in your manuscript. Your project sounds very interesting though! However, I think it would be great to elaborate on why you chose to do your project on weather and *Salmonella* prevalence. Perhaps you could cite some articles discussing how weather has been shown to affect the environmental concentration of *Salmonella* and/or other bacteria. I would also recommend discussing a bit more about the public health impact of *Salmonella* (for example: how many cases are reported each year, what are the most common ways to get infected with *Salmonella*, etc).
+
+You could also discuss the CRISPR SeroSeq technique a bit more. If you have time, it might even be cool to make a graphic that briefly shows how the technique works. I love using biorender to make graphics like this! (https://www.biorender.com/) (this image would go in the assets section, since it cannot be created in Rstudio)
+
+I think it would be good to list the four creek systems that your data came from. Maybe you could even include a map of the creeks. (this image would go in the assets section, since it cannot be created in Rstudio)
+
+You also need to discuss pre-existing/related research and projects to this topic. 
+
+I see that you are missing references. I used Zotero for my project, but originally really struggled with setting it up. I am including a link to a video that really helped me! (https://www.youtube.com/watch?v=zuuOYjE8m98)
+
+### Summary assessment (PICK ONE, DELETE THE OTHERS)
+* very poor contextualization and motivation
+
+## Question description
+How well and clear are the question(s)/hypotheses the project aims to address described? Is it clear how the questions relate to the data?
+
+### Feedback and Comments
+
+I would recommend creating a separate section to list your project questions (and possibly hypotheses). 
+
+### Summary assessment
+* question/hypotheses somewhat explained
+
+## Data description
+How well is the data overall described? Is the source provided? Is a codebook or other meta-information available that makes it clear what the data is? 
+
+### Feedback and Comments
+
+I would recommend creating a section of your manuscript to talk about your data. I see that you discussed the data came from that Shariat lab at UGA. This is great, but needs to be expanded upon. Maybe discuss some of the variables you will be using in your EDA and model analysis. You could also maybe list some of the individuals who collected the data to give them some recognition for this contribution to your project. 
+
+### Summary assessment
+* source and overall structure of data poorly explained
+
+## Data wrangling and exploratory analysis
+How well is the data cleaned/processed and explored? Are all steps reasonable and well explained? Are alternatives discussed and considered? Are meaningful exploratory results shown (e.g. in the supplementary materials)?
+
+### Feedback and Comments
+
+I looked at your processed data and think that it looks good. However, I think that you need to explain what each variable means (maybe add this in the "about data" section of your manuscript). For example, what is "Julian Day"? I would recommend also discussing your prevalence variables. From looking at it, looks like 0 indicates that the serovar is not present, while 1 indicates that the serovar is present - but, it is always good to include a brief explantation of your variables (sort of like a codebook). 
+
+In regards to EDA, I was not able to see much. It looks like you just made three basic preliminary data exploring figures. You need to create some that you can include in your manuscript. 
+
+Here are some potential ideas to get you started: 
+1. Creation of a table that shows the averages of each numeric variable for creek system (A, B, C, D) or season
+2. Create correlation matrix plots (corrplot) and some scatterplots to assess relationships between variables such as Max Air Temp and Typhimurium
+3. Time series plot of serovar concentrations 
+
+### Summary assessment
+* major weaknesses in wrangling and exploratory component
+
+## Appropriateness of Analysis
+Were the analysis methods appropriate for the data? Was the analysis done properly? Were different components of the analysis (e.g. performance measure, variable selection, data pre-processing, model evaluation) done in the best way possible and explained well?
+
+### Feedback and Comments
+
+I do not see any analysis. I recommend using the prevalence of a specific serovar as your outcome and using variables such as Max Air Temp, Min Air Temp, Avg Rel Humidity, Avg Wind Speed, Total Solar Radiation, and Total Rain as predictors. Models you can use include: Linear Regression, Random Forest, LASSO, GAM, etc. I recommend checking out the module 11 reading for some more ideas. 
+
+### Summary assessment
+* wrong/inadequate analysis
+
+## Presentation
+How well are results presented? Are tables and figures easy to read and understand? Are the main figures/tables publication level quality? 
+
+### Feedback and Comments
+
+I do not see any tables. Please see my comments above for some suggestions on figures you can create. You can save these and add them to your manuscript. I recommend using gt() tables to make presentation quality tables.
+
+### Summary assessment
+* results are poorly presented, hard to understand, poor quality
+
+## Discussion/Conclusions
+Are the study findings properly discussed? Are strengths and limitations acknowledged? Are findings interpreted properly?
+
+### Feedback and Comments
+
+I do not see any results so far that you can discuss. After you perform EDA and analysis, add some of the major results to your manuscript (the others can be added to your supplementary file). Then briefly highlight discuss each result. 
+
+A major strength of your study is that the data was collected by someone in the lab. There are significant drawbacks to not being able to use your own data. 
+
+I am familar with that fact that CRISPR in general can be relatively expensive, which may be a drawback. 
+
+### Summary assessment
+* major parts of discussion missing or wrong 
+
+## Further comments
+
+1. Update readme files
+2. In your main readme file, you should include instructions on the order to run your files in
+3. Get rid of any unneeded files (not pertaining to your project, templates, etc.)
+
+
+
+
+# Overall project content evaluation
+Evaluate overall features of the project  by filling in the sections below.
+
+## Structure
+Is the project well structured? Are files in well labeled folders? Do files have reasonable names? Are all "junk" files not needed for analysis/reproduction removed? By just looking at files and folders, can you get an idea of how things fit together?
+
+### Feedback and Comments
+
+Delete files not needed. For example, I believe that the Poster and Slides section from the Products folder can be deleted. Unless you plan on using this analysis for something in the future which you need to create a poster/slide for of course. 
+
+### Summary assessment
+* mostly clear, but some confusing parts (e.g. useless files, things in the wrong folders)
+
+## Documentation 
+How well is the project documented? Are you able to understand each step of the whole analysis, each decision that was made, and each line of code? Is enough information provided as comments in code or as part of Rmd files? 
+
+### Feedback and Comments
+
+There is some documentation, but I personally feel like you could improve the way that your code is explained. This is why I love using qmd/markdown documents - I find it easy to put a few sentences of what I am about to do before I run the code in the code chunk. I am also able to add comments in the code chunks as well. This is just a personal preference though :) 
+
+### Summary assessment
+* decently documented with some gaps
+
+## Reproducibility
+Are all results fully reproducible? Is documentation provided which clearly explains how to reproduce things, and does it work without the need for any manual intervention? Are you able to re-run the whole analysis without having to do manual interventions/edits?
+
+### Feedback and Comments
+
+Was able to run the processingcode.R, edacode.R, and Manuscript.qmd files without any issues. 
+
+### Summary assessment
+* fully reproducible without issues
+
+## Thoroughness
+How thorough was the overall study? Were alternatives (e.g. different ways of processing the data or different models) considered? Were alternatives discussed? Were the questions/hypotheses fully and thoroughly addressed?
+
+### Feedback and Comments
+
+Once again, add a section to your manuscript that lists your questions and hypotheses. Maybe then, you could discuss some possible alternatives you could have done with different data or if you had more time/if you had funding. 
+
+### Summary assessment
+* weak level of thoroughness
+
+## Further comments
+
+1. Your EDA and analysis needs to be completed. Once you have completed this, you can take your main results and add them to your manuscript. The other results can be added to your supplementary file.
+2. Need to add the following sections to your manuscript: authors and affiliations, summary/abstract, general background information, description of data and data sources, questions/hypotheses, overall methods/workflow, data acquisition, data cleaning process, EDA results, modeling results, summary/interpretation, strengths and limitations, conclusions, references. You can look at the examples that Dr. Handel has on the course website project page to see how this is structured. 
+3. Need to add references! I do not know how many points this is worth for the final project submission, but I would assume that it is a pretty big part of the points you receive for your background and introduction since it demonstrates that you did some research on your topic. Use something to manage your citations (such as Zotero). 
+4. Update readme files and add instructions for reproducibility 
