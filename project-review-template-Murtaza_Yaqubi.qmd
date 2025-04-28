@@ -1,0 +1,144 @@
+---
+title: Norris Project Review 
+author: Murtaza Yaqubi
+date: April 22, 2025
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+---
+
+# Overview
+
+Title of project: Evaluating the Impact of Weather on Salmonella Prevalence and Serovar Diversity
+
+Name of project author(s):Connor Norris
+
+Name of project reviewer: Murtaza Yaqubi
+
+# Specific project content evaluation
+Evaluate the different parts of the project by filling in the sections below.
+
+
+## Background, Context and Motivation
+How well is the context of the project described? Is a comprehensive background, including summary of previous/related work given? Is the project well placed into the context of existing work (including proper referencing of existing work). Is it clear why the project was undertaken and what new information it hopes to provide?
+
+### Feedback and Comments
+
+The draft could benefit from an abstract at the start that briefly outlines the study’s objectives, data sources, and methods. The introduction should be expanded to clearly define CRISPR SeroSeq, explain its novelty, and include a concise review of prior research on how weather influences Salmonella prevalence or similar pathogens. Adding a few targeted citations to foundational studies will help readers understand the broader context and the project’s contribution.
+
+### Summary assessment (PICK ONE, DELETE THE OTHERS)
+* very poor contextualization and motivation
+
+## Question description
+How well and clear are the question(s)/hypotheses the project aims to address described? Is it clear how the questions relate to the data?
+
+### Feedback and Comments
+
+The draft introduces the goal of using weather variables to predict overall Salmonella prevalence and specific serovars (Infantis, Typhimurium, Give), but it doesn’t spell these out as explicit research questions or hypotheses. To strengthen this section, the author should articulate clear, testable questions—such as “How does daily rainfall affect the likelihood of detecting Salmonella Typhimurium?”—and tie each to the corresponding data sources and variables. That way, readers will know exactly what analyses will follow and why.
+
+### Summary assessment
+* question/hypotheses somewhat explained
+
+## Data description
+How well is the data overall described? Is the source provided? Is a codebook or other meta-information available that makes it clear what the data is? 
+
+### Feedback and Comments
+
+The manuscript clearly outlines the data used: monthly creek water samples collected across four Georgia creek systems from 2021 to 2023, CRISPR SeroSeq for identifying Salmonella serovars, and weather observations (minimum and maximum temperature, humidity, rainfall) from nearby UGA Weather Network stations. You also specify the analysis focus on overall Salmonella prevalence and the prevalence of Infantis, Typhimurium, and Give serovars. To give readers a quick overview, consider adding the total number of samples, a concise table of key variables with units (e.g., rainfall in millimeters), and a brief note on how prevalence metrics were derived.
+
+### Summary assessment
+* source and overall structure of data poorly explained
+
+## Data wrangling and exploratory analysis
+How well is the data cleaned/processed and explored? Are all steps reasonable and well explained? Are alternatives discussed and considered? Are meaningful exploratory results shown (e.g. in the supplementary materials)?
+
+### Feedback and Comments
+
+It’s great to see a dedicated cleaning script (processing-code/processingcode.R) that prepares your dataset and an exploratory script (eda-code/edacode.R) that generates clear, informative plots. To build on this, you’ll want to complete the correlation analysis section—there’s a heading in place, but no code or results underneath. Adding that missing code and displaying the correlation output will round out your EDA. Also, consider updating your README with brief descriptions of each script and instructions on how to run them so others can easily reproduce your work.
+
+### Summary assessment
+* major weaknesses in wrangling and exploratory component
+
+## Appropriateness of Analysis
+Were the analysis methods appropriate for the data? Was the analysis done properly? Were different components of the analysis (e.g. performance measure, variable selection, data pre-processing, model evaluation) done in the best way possible and explained well?
+
+### Feedback and Comments
+
+There is an analysis-code folder with a statistical-analysis.R script, which is a good sign that you’re structuring your work. However, the current script still runs a generic example (e.g., modeling Height ~ Weight) rather than applying logistic regression, log-binomial models, or machine learning methods to your actual Salmonella and weather data. To make this section effective, replace the placeholder code with project-specific commands: load your cleaned dataset, fit the intended models for overall and serovar-specific prevalence, and calculate performance metrics (e.g., AUC for classification or RMSE for continuous predictions). Also, document any variable selection or preprocessing steps so that someone else can follow your analysis logic.
+
+### Summary assessment
+* wrong/inadequate analysis
+
+## Presentation
+How well are results presented? Are tables and figures easy to read and understand? Are the main figures/tables publication level quality? 
+
+### Feedback and Comments
+
+I found it hard to follow the flow since there are no clear Results or Methods headings, and none of the figures or tables are embedded. Try weaving your visuals directly into the manuscript with captions (e.g., Figure 1: ROC curve) and give each section its own heading. That way readers can jump to what they’re interested in and see your findings right where you discuss them.
+
+### Summary assessment
+* results are poorly presented, hard to understand, poor quality
+
+## Discussion/Conclusions
+Are the study findings properly discussed? Are strengths and limitations acknowledged? Are findings interpreted properly?
+
+### Feedback and Comments
+
+Currently, the manuscript does not include a dedicated Discussion or Conclusion. After running your analyses, readers will expect a section that interprets the results in the context of your research questions—highlighting any significant weather predictors, acknowledging data or methodological limitations, and suggesting implications for public health monitoring. A concise Conclusion at the end should summarize your main takeaways and propose next steps or future research directions. Adding these elements will give your paper a clear narrative arc and leave readers with a sense of closure.
+
+### Summary assessment
+* major parts of discussion missing or wrong 
+
+## Further comments
+
+A quick clean‑up would go a long way—remove any templates or miscellaneous files that aren’t part of your analysis so readers aren’t distracted. It would also help to update the README in each folder (and especially the main README) with a clear, step‑by‑step walkthrough of how to run your scripts. This will make the workflow transparent and easy for others to reproduce.
+
+
+# Overall project content evaluation
+Evaluate overall features of the project  by filling in the sections below.
+
+## Structure
+Is the project well structured? Are files in well labeled folders? Do files have reasonable names? Are all "junk" files not needed for analysis/reproduction removed? By just looking at files and folders, can you get an idea of how things fit together?
+
+### Feedback and Comments
+
+Overall, the repo follows a logical hierarchy—separating assets, code, data, results, and the manuscript into dedicated folders. Folder names are clear, making it easy to locate scripts and outputs. That said, a few leftover template files and example scripts clutter the root and code directories, which could confuse someone browsing for project-specific content. Renaming generic script files to reflect their purpose (e.g., processingcode.R to 01_data_processing.R) and cleaning out unused files will streamline the structure further. Including a short README in each folder summarizing its contents would also help guide readers through the workflow.
+
+### Summary assessment
+* mostly clear, but some confusing parts (e.g. useless files, things in the wrong folders)
+
+## Documentation 
+How well is the project documented? Are you able to understand each step of the whole analysis, each decision that was made, and each line of code? Is enough information provided as comments in code or as part of Rmd files? 
+
+### Feedback and Comments
+
+The project includes several scripts and a manuscript, but there are gaps in inline comments and explanations. Adding brief comments at key steps in each R script and including a header in your Quarto document explaining its structure would help readers follow your logic. Consider annotating complex code blocks with rationale for choices and linking to relevant sections of the manuscript.
+
+### Summary assessment
+* decently documented with some gaps
+
+## Reproducibility
+Are all results fully reproducible? Is documentation provided which clearly explains how to reproduce things, and does it work without the need for any manual intervention? Are you able to re-run the whole analysis without having to do manual interventions/edits?
+
+### Feedback and Comments
+
+Successfully executed the processingcode.R, edacode.R, and Manuscript.qmd files without encountering any problems.
+
+### Summary assessment
+* fully reproducible without issues
+
+## Thoroughness
+How thorough was the overall study? Were alternatives (e.g. different ways of processing the data or different models) considered? Were alternatives discussed? Were the questions/hypotheses fully and thoroughly addressed?
+
+### Feedback and Comments
+
+Please include a new section in your manuscript that outlines your research questions and hypotheses. Additionally, consider discussing potential alternative approaches, such as using different datasets or methods, that could have been explored with more time or funding.
+
+### Summary assessment
+* weak level of thoroughness
+
+## Further comments
+
+A quick clean-up would go a long way—remove any templates or miscellaneous files that aren’t part of your analysis so readers aren’t distracted. It would also help to update the README in each folder (and especially the main README) with a clear, step-by-step walkthrough of how to run your scripts. This will make the workflow transparent and easy for others to reproduce.
