@@ -91,4 +91,115 @@ rf_reg_model <- rand_forest(mode = "regression", trees = 1000) %>%
 rf_class_model <- rand_forest(mode = "classification", trees = 1000) %>%
   set_engine("ranger")
 
+# ---- data-splitting ----
+#Split data into 80% training data and 20% testing data
+#Set random seed
+rngseed = 1234
+set.seed(rngseed)
+
+#Data splitting (80% training, 20% testing)
+data_split <- initial_split(df, prop = 0.8)
+train <- training(data_split)
+test <- testing(data_split)
+
+#Cross-validation: 5-fold CV
+set.seed(rngseed)
+cv_folds <- vfold_cv(train, v = 5)
+
+
+# ---- recipe-creation ----
+#Proportion model for Give I
+give_prop <- recipe(data = train, `Give I` ~ `Muenchen I` + Rubislaw + Typhimurium + `Aqua/Inverness` +
+                      Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+
+#Prevalence model for Give I
+give_prev <- recipe(data = train, `Give I Prev` ~ `Muenchen I Prev` + `Rubislaw Prev` + 
+                      `Typhimurium Prev` + `Aqua/Inverness Prev` +
+                      `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Proportion model for Muenchen I
+give_prop <- recipe(data = train, `Muenchen I` ~ `Give I` + Rubislaw + Typhimurium + `Aqua/Inverness` +
+                      Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Prevalence model for Muenchen I
+give_prev <- recipe(data = train, `Muenchen I Prev` ~ `Give I Prev` + `Rubislaw Prev` + 
+                      `Typhimurium Prev` + `Aqua/Inverness Prev` +
+                      `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Proportion model for Rubislaw
+give_prop <- recipe(data = train, `Rubislaw` ~ `Give I` + `Muenchen I` + Typhimurium + `Aqua/Inverness` +
+                      Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Prevalence model for Rubislaw
+give_prev <- recipe(data = train, `Rubislaw Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
+                      `Typhimurium Prev` + `Aqua/Inverness Prev` +
+                      `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Proportion model for Typhimurium
+give_prop <- recipe(data = train, Typhimurium ~ `Give I` + `Muenchen I` + Rubislaw + `Aqua/Inverness` +
+                      Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+#Prevalence model for Typhimurium
+give_prev <- recipe(data = train, `Typhimurium Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
+                      `Rubislaw Prev` + `Aqua/Inverness Prev` +
+                      `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
+                      `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
+                      `Total Rain(in)` + Site + System + Season) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(terms = ~ `Max Air Temperature(F)`:`Min Air Temperature(F)` + 
+                  `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                  `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+
 
