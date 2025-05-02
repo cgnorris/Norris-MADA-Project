@@ -111,7 +111,6 @@ ggplot(processed_data, aes(x = `Min Air Temperature(F)`, y = `Max Air Temperatur
   theme_minimal()
 
 #Humidity vs. Rain
-#Max vs. Min Temp
 ggplot(processed_data, aes(x = `Avg Relative Humidity(%)`, y = `Total Rain(in)`)) +
   geom_point() +
   geom_smooth(method = lm) +
