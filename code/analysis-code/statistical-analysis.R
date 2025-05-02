@@ -133,7 +133,7 @@ give_prev <- recipe(data = train, `Give I Prev` ~ `Muenchen I Prev` + `Rubislaw 
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Proportion model for Muenchen I
-give_prop <- recipe(data = train, `Muenchen I` ~ `Give I` + Rubislaw + Typhimurium + `Aqua/Inverness` +
+muenchen_prop <- recipe(data = train, `Muenchen I` ~ `Give I` + Rubislaw + Typhimurium + `Aqua/Inverness` +
                       Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
                       `Total Rain(in)` + Site + System + Season) %>%
@@ -144,7 +144,7 @@ give_prop <- recipe(data = train, `Muenchen I` ~ `Give I` + Rubislaw + Typhimuri
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Prevalence model for Muenchen I
-give_prev <- recipe(data = train, `Muenchen I Prev` ~ `Give I Prev` + `Rubislaw Prev` + 
+muenchen_prev <- recipe(data = train, `Muenchen I Prev` ~ `Give I Prev` + `Rubislaw Prev` + 
                       `Typhimurium Prev` + `Aqua/Inverness Prev` +
                       `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
@@ -156,7 +156,7 @@ give_prev <- recipe(data = train, `Muenchen I Prev` ~ `Give I Prev` + `Rubislaw 
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Proportion model for Rubislaw
-give_prop <- recipe(data = train, `Rubislaw` ~ `Give I` + `Muenchen I` + Typhimurium + `Aqua/Inverness` +
+rubislaw_prop <- recipe(data = train, `Rubislaw` ~ `Give I` + `Muenchen I` + Typhimurium + `Aqua/Inverness` +
                       Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
                       `Total Rain(in)` + Site + System + Season) %>%
@@ -167,7 +167,7 @@ give_prop <- recipe(data = train, `Rubislaw` ~ `Give I` + `Muenchen I` + Typhimu
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Prevalence model for Rubislaw
-give_prev <- recipe(data = train, `Rubislaw Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
+rubislaw_prev <- recipe(data = train, `Rubislaw Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
                       `Typhimurium Prev` + `Aqua/Inverness Prev` +
                       `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
@@ -179,7 +179,7 @@ give_prev <- recipe(data = train, `Rubislaw Prev` ~ `Give I Prev` + `Muenchen I 
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Proportion model for Typhimurium
-give_prop <- recipe(data = train, Typhimurium ~ `Give I` + `Muenchen I` + Rubislaw + `Aqua/Inverness` +
+typhimurium_prop <- recipe(data = train, Typhimurium ~ `Give I` + `Muenchen I` + Rubislaw + `Aqua/Inverness` +
                       Infantis + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
                       `Total Rain(in)` + Site + System + Season) %>%
@@ -190,7 +190,7 @@ give_prop <- recipe(data = train, Typhimurium ~ `Give I` + `Muenchen I` + Rubisl
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
 #Prevalence model for Typhimurium
-give_prev <- recipe(data = train, `Typhimurium Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
+typhimurium_prev <- recipe(data = train, `Typhimurium Prev` ~ `Give I Prev` + `Muenchen I Prev` + 
                       `Rubislaw Prev` + `Aqua/Inverness Prev` +
                       `Infantis Prev` + `Max Air Temperature(F)` + `Min Air Temperature(F)` + 
                       `Avg Relative Humidity(%)` + `Avg Wind Speed(mph)` + `Total Solar Radiation(MJ/m^2)` +
@@ -201,5 +201,116 @@ give_prev <- recipe(data = train, `Typhimurium Prev` ~ `Give I Prev` + `Muenchen
                   `Avg Relative Humidity(%)`:`Total Rain(in)` + 
                   `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
 
+# ---- workflow creation ----
+#Define metrics for evaluation
+reg_metrics <- metric_set(rmse, rsq)
 
+#Workflows for all models
+#Give I beta
+give_beta_wf <- workflow() %>%
+  add_recipe(give_prop) %>%
+  add_model(beta_reg)
 
+#Give I logistic
+give_log_wf <- workflow() %>%
+  add_recipe(give_prev) %>%
+  add_model(log_reg)
+
+#Give I regression rf
+give_regrf_wf <- workflow() %>%
+  add_recipe(give_prop) %>%
+  add_model(rf_reg_model)
+
+#Give I classification rf
+give_classrf_wf <- workflow() %>%
+  add_recipe(give_prev) %>%
+  add_model(rf_class_model)
+
+#Muenchen I beta
+muenchen_beta_wf <- workflow() %>%
+  add_recipe(muenchen_prop) %>%
+  add_model(beta_reg)
+
+#Muenchen I logistic
+muenchen_log_wf <- workflow() %>%
+  add_recipe(muenchen_prev) %>%
+  add_model(log_reg)
+
+#Muenchen I regression rf
+muenchen_regrf_wf <- workflow() %>%
+  add_recipe(muenchen_prop) %>%
+  add_model(rf_reg_model)
+
+#Muenchen I classification rf
+muenchen_classrf_wf <- workflow() %>%
+  add_recipe(muenchen_prev) %>%
+  add_model(rf_class_model)
+            
+#Rubislaw beta
+rubislaw_beta_wf <- workflow() %>%
+  add_recipe(rubislaw_prop) %>%
+  add_model(beta_reg)
+
+#Rubislaw logistic
+rubislaw_log_wf <- workflow() %>%
+  add_recipe(rubislaw_prev) %>%
+  add_model(log_reg)
+
+#Rubislaw I regression rf
+rubislaw_regrf_wf <- workflow() %>%
+  add_recipe(rubislaw_prop) %>%
+  add_model(rf_reg_model)
+
+#Rubislaw I classification rf
+rubislaw_classrf_wf <- workflow() %>%
+  add_recipe(rubislaw_prev) %>%
+  add_model(rf_class_model)
+
+#typhimurium beta
+typhimurium_beta_wf <- workflow() %>%
+  add_recipe(typhimurium_prop) %>%
+  add_model(beta_reg)
+
+#typhimurium logistic
+typhimurium_log_wf <- workflow() %>%
+  add_recipe(typhimurium_prev) %>%
+  add_model(log_reg)
+
+#typhimurium I regression rf
+typhimurium_regrf_wf <- workflow() %>%
+  add_recipe(typhimurium_prop) %>%
+  add_model(rf_reg_model)
+
+#typhimurium I classification rf
+typhimurium_classrf_wf <- workflow() %>%
+  add_recipe(typhimurium_prev) %>%
+  add_model(rf_class_model)
+
+## ---- beta-regression-fitting ----
+#Cross-validation for Give beta regression model
+give_beta_cv_results <- fit_resamples(
+  give_beta_wf,
+  resamples = cv_folds,
+  metrics = reg_metrics
+)
+
+#Cross-validation for Muenchen beta regression model
+muenchen_beta_cv_results <- fit_resamples(
+  muenchen_beta_wf,
+  resamples = cv_folds,
+  metrics = reg_metrics
+)
+
+#Cross-validation for Rubislaw beta regression model
+rubislaw_beta_cv_results <- fit_resamples(
+  rubislaw_beta_wf,
+  resamples = cv_folds,
+  metrics = reg_metrics
+)
+
+#Cross-validation for Typhimurium beta regression model
+typhimurium_beta_cv_results <- fit_resamples(
+  typhimurium_beta_wf,
+  resamples = cv_folds,
+  metrics = reg_metrics
+)
