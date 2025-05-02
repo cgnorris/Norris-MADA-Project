@@ -1,56 +1,94 @@
-###############################
-# analysis script
-#
-#this script loads the processed, cleaned data, does a simple analysis
-#and saves the results to the results folder
+#Analysis script
 
-#load needed packages. make sure they are installed.
-library(ggplot2) #for plotting
-library(broom) #for cleaning up output from lm()
-library(here) #for data loading/saving
-
-#path to data
-#note the use of the here() package and not absolute paths
-data_location <- here::here("data","processed-data","processeddata.rds")
-
-#load data. 
-mydata <- readRDS(data_location)
+#Load needed packages
+library(ggplot2)
+library(broom) 
+library(here) 
+library(tidymodels)
+library(tidyverse)
+library(betareg)
+library(ranger)
 
 
-######################################
-#Data fitting/statistical analysis
-######################################
+#Load data
+df <- readRDS("data/processed-data/processeddata.rds")
 
-############################
-#### First model fit
-# fit linear model using height as outcome, weight as predictor
+# ---- extra-data-processing ----
+#Remove variables from original processed data that wont be used in modelling
+df <- df %>%
+  select(-c(Year, `Julian Day`, `Max Wind Speed (m/s)`, ID, Month))
 
-lmfit1 <- lm(Height ~ Weight, mydata)  
+# ---- model-definition ----
 
-# place results from fit into a data frame with the tidy function
-lmtable1 <- broom::tidy(lmfit1)
+#Beta regresssion (used when response is bounded 0-1, as with proportions)
+#Beta regression models are not natively supported in the tinymodels framework, but it can be added as a custom model
+#Define a new model
+set_new_model("beta_reg")
 
-#look at fit results
-print(lmtable1)
+#Set the model mode
+set_model_mode("beta_reg", mode = "regression")
 
-# save fit results table  
-table_file1 = here("results", "tables", "resulttable1.rds")
-saveRDS(lmtable1, file = table_file1)
+#Set the model engine
+set_model_engine("beta_reg", mode = "regression", eng = "betareg")
 
-############################
-#### Second model fit
-# fit linear model using height as outcome, weight and gender as predictor
+#Set the model fitting function
+set_fit(
+  model = "beta_reg",
+  eng = "betareg",
+  mode = "regression",
+  value = list(
+    interface = "formula",
+    protect = c("formula", "data"),
+    func = c(pkg = "betareg", fun = "betareg"),
+    defaults = list()
+  )
+)
 
-lmfit2 <- lm(Height ~ Weight + Gender, mydata)  
+#Set how to extract predictions
+set_pred(
+  model = "beta_reg",
+  eng = "betareg",
+  mode = "regression",
+  type = "numeric",
+  value = list(
+    pre = NULL,
+    post = NULL,
+    func = c(pkg = "stats", fun = "predict"),
+    args = list(object = expr(object), newdata = expr(new_data), type = "response")
+  )
+)
 
-# place results from fit into a data frame with the tidy function
-lmtable2 <- broom::tidy(lmfit2)
+#Create model specification
+beta_reg <- function(mode = "regression") {
+  parsnip::new_model_spec("beta_reg", args = list(), mode = mode, eng_args = NULL, method = NULL, engine = NULL)
+}
 
-#look at fit results
-print(lmtable2)
+beta_reg <- beta_reg() %>%
+  set_engine("betareg")
 
-# save fit results table  
-table_file2 = here("results", "tables", "resulttable2.rds")
-saveRDS(lmtable2, file = table_file2)
+#Beta models won't work with exact 0s and 1s - transform proportion data accordingly
+epsilon <- 1e-4
 
-  
+#Values < 0.0001 become 0.0001
+#Values > 0.9999 become 0.9999
+df$`Aqua/Inverness` <- pmin(pmax(df$`Aqua/Inverness`, epsilon), 1 - epsilon)
+df$`Give I` <- pmin(pmax(df$`Give I`, epsilon), 1 - epsilon)
+df$Infantis <- pmin(pmax(df$Infantis, epsilon), 1 - epsilon)
+df$`Muenchen I` <- pmin(pmax(df$`Muenchen I`, epsilon), 1 - epsilon)
+df$Typhimurium <- pmin(pmax(df$Typhimurium, epsilon), 1 - epsilon)
+df$Rubislaw <- pmin(pmax(df$Rubislaw, epsilon), 1 - epsilon)
+
+#Define logistic regression model
+log_reg <- logistic_reg(mode = "classification") %>%
+  set_engine("glm")
+
+#Define random forest models
+#Regression - proportions
+rf_reg_model <- rand_forest(mode = "regression", trees = 1000) %>%
+  set_engine("ranger")
+
+#Classification - prevalence
+rf_class_model <- rand_forest(mode = "classification", trees = 1000) %>%
+  set_engine("ranger")
+
+
