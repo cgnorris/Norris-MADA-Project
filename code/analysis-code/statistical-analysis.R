@@ -158,7 +158,7 @@ typhimurium_prev <- recipe(data = train, `Typhimurium Prev` ~ `Give I Prev` + `M
 
 # ---- workflow creation ----
 #Define metrics for evaluation
-reg_metrics <- metric_set(rmse, rsq)
+reg_metrics <- metric_set(yardstick::rmse, yardstick::rsq)
 
 #Define metrics for classification evaluation
 class_metrics <- metric_set(accuracy, roc_auc)
@@ -556,8 +556,6 @@ collect_metrics(typhimurium_null_results)
 #Models did not perform better than null models
 
 # ---- logistic-regression-fitting ----
-
-
 #Cross-validation
 give_log_results <- fit_resamples(give_log_wf, resamples = cv_folds, metrics = class_metrics)
 muenchen_log_results <- fit_resamples(muenchen_log_wf, resamples = cv_folds, metrics = class_metrics)
@@ -576,3 +574,222 @@ muenchen_log_metrics
 rubislaw_log_metrics
 typhimurium_log_metrics
 
+#Compare to null model 
+null_class_mod <- null_model() %>%
+  set_engine("parsnip") %>%
+  set_mode("classification")
+
+#Make recipes for the null model
+give_null_class_recipe <- recipe(`Give I Prev` ~ 1, data = train)
+muenchen_null_class_recipe <- recipe(`Muenchen I Prev` ~ 1, data = train)
+rubislaw_null_class_recipe <- recipe(`Rubislaw Prev` ~ 1, data = train)
+typhimurium_null_class_recipe <- recipe(`Typhimurium Prev` ~ 1, data = train)
+
+#Create a workflow for the null model
+give_null_class_workflow <- workflow() %>%
+  add_recipe(give_null_class_recipe) %>%
+  add_model(null_class_mod)
+
+muenchen_null_class_workflow <- workflow() %>%
+  add_recipe(muenchen_null_class_recipe) %>%
+  add_model(null_class_mod)
+
+rubislaw_null_class_workflow <- workflow() %>%
+  add_recipe(rubislaw_null_class_recipe) %>%
+  add_model(null_class_mod)
+
+typhimurium_null_class_workflow <- workflow() %>%
+  add_recipe(typhimurium_null_class_recipe) %>%
+  add_model(null_class_mod)
+
+#Fit null models with cross validation
+set.seed(rngseed)
+give_null_class_results <- fit_resamples(
+  give_null_class_workflow,
+  resamples = cv_folds,
+  metrics = class_metrics
+)
+
+muenchen_null_class_results <- fit_resamples(
+  muenchen_null_class_workflow,
+  resamples = cv_folds,
+  metrics = class_metrics
+)
+
+rubislaw_null_class_results <- fit_resamples(
+  rubislaw_null_class_workflow,
+  resamples = cv_folds,
+  metrics = class_metrics
+)
+
+typhimurium_null_class_results <- fit_resamples(
+  typhimurium_null_class_workflow,
+  resamples = cv_folds,
+  metrics = class_metrics
+)
+
+#Show metrics
+collect_metrics(give_null_class_results)
+give_log_metrics 
+collect_metrics(muenchen_null_class_results)
+muenchen_log_metrics 
+collect_metrics(rubislaw_null_class_results)
+rubislaw_log_metrics
+collect_metrics(typhimurium_null_class_results)
+typhimurium_log_metrics
+
+#All models performed better than the null models
+
+#Fit logistic regression models to the training data
+give_log_fit <- fit(give_log_wf, data = train)
+muenchen_log_fit <- fit(muenchen_log_wf, data = train)
+rubislaw_log_fit <- fit(rubislaw_log_wf, data = train)
+typhimurium_log_fit <- fit(typhimurium_log_wf, data = train)
+
+#Extract and summarize the fitted models
+summary(pull_workflow_fit(give_log_fit)$fit)
+summary(pull_workflow_fit(muenchen_log_fit)$fit)
+summary(pull_workflow_fit(rubislaw_log_fit)$fit)
+summary(pull_workflow_fit(typhimurium_log_fit)$fit)
+ 
+#Drop insignificant predictors
+give_log_reg <- recipe(data = train, `Give I Prev` ~ `Total Rain(in)` + `Aqua/Inverness Prev` + System + `Avg Relative Humidity(%)` +
+                         `Total Solar Radiation(MJ/m^2)`) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_interact(~ `Avg Relative Humidity(%)`:`Total Rain(in)` + 
+                `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
+
+muenchen_log_reg <- recipe(data = train, `Muenchen I Prev` ~ `Min Air Temperature(F)` + `Max Air Temperature(F)` + 
+                             `Aqua/Inverness Prev` + `Infantis Prev`) %>%
+  step_interact(~ `Min Air Temperature(F)`:`Max Air Temperature(F)`)
+
+rubislaw_log_reg <- recipe(data = train, `Rubislaw Prev` ~ System)
+
+typhimurium_log_reg <- recipe(data = train, `Typhimurium Prev` ~ System)
+
+#Update workflows
+give_log_wf <- workflow() %>%
+  add_recipe(give_log_reg) %>%
+  add_model(log_reg)
+
+muenchen_log_wf <- workflow() %>%
+  add_recipe(muenchen_log_reg) %>%
+  add_model(log_reg)
+
+rubislaw_log_wf <- workflow() %>%
+  add_recipe(rubislaw_log_reg) %>%
+  add_model(log_reg)
+
+typhimurium_log_wf <- workflow() %>%
+  add_recipe(typhimurium_log_reg) %>%
+  add_model(log_reg)
+
+#Fit revised models to training data
+give_log_fit <- fit(give_log_wf, data = train)
+muenchen_log_fit <- fit(muenchen_log_wf, data = train)
+rubislaw_log_fit <- fit(rubislaw_log_wf, data = train)
+typhimurium_log_fit <- fit(typhimurium_log_wf, data = train)
+
+#Extract and summarize the fitted models
+summary(pull_workflow_fit(give_log_fit)$fit)
+summary(pull_workflow_fit(muenchen_log_fit)$fit)
+summary(pull_workflow_fit(rubislaw_log_fit)$fit)
+summary(pull_workflow_fit(typhimurium_log_fit)$fit)
+
+#Make predictions from each model using the training data
+give_log_train_preds <- predict(give_log_fit, new_data = train, type = "class")
+give_log_train_prob_preds <- predict(give_log_fit, new_data = train, type = "prob")
+muenchen_log_train_preds <- predict(muenchen_log_fit, new_data = train, type = "class")
+muenchen_log_train_prob_preds <- predict(muenchen_log_fit, new_data = train, type = "prob")
+rubislaw_log_train_preds <- predict(rubislaw_log_fit, new_data = train, type = "class")
+rubislaw_log_train_prob_preds <- predict(rubislaw_log_fit, new_data = train, type = "prob")
+typhimurium_log_train_preds <- predict(typhimurium_log_fit, new_data = train, type = "class")
+typhimurium_log_train_prob_preds <- predict(typhimurium_log_fit, new_data = train, type = "prob")
+
+#Combine predictions with actual values
+give_results <- bind_cols(
+  train,
+  predictions = give_log_train_preds,
+  prob_1 = give_log_train_prob_preds$.pred_1
+)
+muenchen_results <- bind_cols(
+  train,
+  predictions = muenchen_log_train_preds,
+  prob_1 = muenchen_log_train_prob_preds$.pred_1
+)
+rubislaw_results <- bind_cols(
+  train,
+  predictions = rubislaw_log_train_preds,
+  prob_1 = rubislaw_log_train_prob_preds$.pred_1
+)
+typhimurium_results <- bind_cols(
+  train,
+  predictions = typhimurium_log_train_preds,
+  prob_1 = typhimurium_log_train_prob_preds$.pred_1
+)
+
+#Calculate accuracy and roc-auc
+give_accuracy <- accuracy(give_results, truth = "Give I Prev", estimate = .pred_class)
+give_roc_auc <- roc_auc(give_results, truth = "Give I Prev", prob_1)
+muenchen_accuracy <- accuracy(muenchen_results, truth = "Muenchen I Prev", estimate = .pred_class)
+muenchen_roc_auc <- roc_auc(muenchen_results, truth = "Muenchen I Prev", prob_1)
+rubislaw_accuracy <- accuracy(rubislaw_results, truth = "Rubislaw Prev", estimate = .pred_class)
+rubislaw_roc_auc <- roc_auc(rubislaw_results, truth = "Rubislaw Prev", prob_1)
+typhimurium_accuracy <- accuracy(typhimurium_results, truth = "Typhimurium Prev", estimate = .pred_class)
+typhimurium_roc_auc <- roc_auc(typhimurium_results, truth = "Typhimurium Prev", prob_1)
+
+#Combine into df
+log_training_results <- data.frame(
+  Response = c("Give I", "Muenchen I", "Rubislaw", "Typhimurium"),
+  Accuracy = c(give_accuracy$.estimate, muenchen_accuracy$.estimate, rubislaw_accuracy$.estimate, typhimurium_accuracy$.estimate),
+  ROC_AUC = c(give_roc_auc$.estimate, muenchen_roc_auc$.estimate, rubislaw_roc_auc$.estimate, typhimurium_roc_auc$.estimate)
+)
+
+#Repeat for testing data
+give_log_test_preds <- predict(give_log_fit, new_data = test, type = "class")
+give_log_test_prob_preds <- predict(give_log_fit, new_data = test, type = "prob")
+muenchen_log_test_preds <- predict(muenchen_log_fit, new_data = test, type = "class")
+muenchen_log_test_prob_preds <- predict(muenchen_log_fit, new_data = test, type = "prob")
+rubislaw_log_test_preds <- predict(rubislaw_log_fit, new_data = test, type = "class")
+rubislaw_log_test_prob_preds <- predict(rubislaw_log_fit, new_data = test, type = "prob")
+typhimurium_log_test_preds <- predict(typhimurium_log_fit, new_data = test, type = "class")
+typhimurium_log_test_prob_preds <- predict(typhimurium_log_fit, new_data = test, type = "prob")
+
+#Combine predictions with actual values
+give_results_test <- bind_cols(
+  test,
+  predictions = give_log_test_preds,
+  prob_1 = give_log_test_prob_preds$.pred_1
+)
+muenchen_results_test <- bind_cols(
+  test,
+  predictions = muenchen_log_test_preds,
+  prob_1 = muenchen_log_test_prob_preds$.pred_1
+)
+rubislaw_results_test <- bind_cols(
+  test,
+  predictions = rubislaw_log_test_preds,
+  prob_1 = rubislaw_log_test_prob_preds$.pred_1
+)
+typhimurium_results_test <- bind_cols(
+  test,
+  predictions = typhimurium_log_test_preds,
+  prob_1 = typhimurium_log_test_prob_preds$.pred_1
+)
+
+#Calculate accuracy and roc-auc
+give_accuracy_test <- accuracy(give_results_test, truth = "Give I Prev", estimate = .pred_class)
+give_roc_auc_test <- roc_auc(give_results_test, truth = "Give I Prev", prob_1)
+muenchen_accuracy_test <- accuracy(muenchen_results_test, truth = "Muenchen I Prev", estimate = .pred_class)
+muenchen_roc_auc_test <- roc_auc(muenchen_results_test, truth = "Muenchen I Prev", prob_1)
+rubislaw_accuracy_test <- accuracy(rubislaw_results_test, truth = "Rubislaw Prev", estimate = .pred_class)
+rubislaw_roc_auc_test <- roc_auc(rubislaw_results_test, truth = "Rubislaw Prev", prob_1)
+typhimurium_accuracy_test <- accuracy(typhimurium_results_test, truth = "Typhimurium Prev", estimate = .pred_class)
+typhimurium_roc_auc_test <- roc_auc(typhimurium_results_test, truth = "Typhimurium Prev", prob_1)
+
+#Combine into df
+log_testing_results <- data.frame(
+  Response = c("Give I", "Muenchen I", "Rubislaw", "Typhimurium"),
+  Accuracy = c(give_accuracy_test$.estimate, muenchen_accuracy_test$.estimate, rubislaw_accuracy_test$.estimate, typhimurium_accuracy_test$.estimate),
+  ROC_AUC = c(give_roc_auc_test$.estimate, muenchen_roc_auc_test$.estimate, rubislaw_roc_auc_test$.estimate, typhimurium_roc_auc_test$.estimate)
+)
