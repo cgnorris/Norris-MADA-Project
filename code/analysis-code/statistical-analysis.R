@@ -10,7 +10,9 @@ library(betareg)
 library(ranger)
 library(knitr)
 library(car)
-
+library(vip)
+library(DALEX)
+library(DALEXtra)
 
 #Load data
 df <- readRDS("data/processed-data/processeddata.rds")
@@ -45,14 +47,10 @@ df$`Muenchen I Prev` <- as.factor(df$`Muenchen I Prev`)
 log_reg <- logistic_reg(mode = "classification") %>%
   set_engine("glm")
 
-#Define random forest models
+#Define random forest model
 #Regression - proportions
 rf_reg_model <- rand_forest(mode = "regression", trees = 1000) %>%
-  set_engine("ranger")
-
-#Classification - prevalence
-rf_class_model <- rand_forest(mode = "classification", trees = 1000) %>%
-  set_engine("ranger")
+  set_engine("ranger", importance = "permutation")
 
 # ---- data-splitting ----
 #Split data into 80% training data and 20% testing data
@@ -169,60 +167,40 @@ give_log_wf <- workflow() %>%
   add_recipe(give_prev) %>%
   add_model(log_reg)
 
-#Give I regression rf
+#Give I rf
 give_regrf_wf <- workflow() %>%
   add_recipe(give_prop) %>%
   add_model(rf_reg_model)
-
-#Give I classification rf
-give_classrf_wf <- workflow() %>%
-  add_recipe(give_prev) %>%
-  add_model(rf_class_model)
 
 #Muenchen I logistic
 muenchen_log_wf <- workflow() %>%
   add_recipe(muenchen_prev) %>%
   add_model(log_reg)
 
-#Muenchen I regression rf
+#Muenchen I rf
 muenchen_regrf_wf <- workflow() %>%
   add_recipe(muenchen_prop) %>%
   add_model(rf_reg_model)
-
-#Muenchen I classification rf
-muenchen_classrf_wf <- workflow() %>%
-  add_recipe(muenchen_prev) %>%
-  add_model(rf_class_model)
 
 #Rubislaw logistic
 rubislaw_log_wf <- workflow() %>%
   add_recipe(rubislaw_prev) %>%
   add_model(log_reg)
 
-#Rubislaw I regression rf
+#Rubislaw I rf
 rubislaw_regrf_wf <- workflow() %>%
   add_recipe(rubislaw_prop) %>%
   add_model(rf_reg_model)
-
-#Rubislaw I classification rf
-rubislaw_classrf_wf <- workflow() %>%
-  add_recipe(rubislaw_prev) %>%
-  add_model(rf_class_model)
 
 #typhimurium logistic
 typhimurium_log_wf <- workflow() %>%
   add_recipe(typhimurium_prev) %>%
   add_model(log_reg)
 
-#typhimurium I regression rf
+#typhimurium I rf
 typhimurium_regrf_wf <- workflow() %>%
   add_recipe(typhimurium_prop) %>%
   add_model(rf_reg_model)
-
-#typhimurium I classification rf
-typhimurium_classrf_wf <- workflow() %>%
-  add_recipe(typhimurium_prev) %>%
-  add_model(rf_class_model)
 
 ## ---- beta-regression-CV ----
 #Standardize the predictors involved in interaction
@@ -316,48 +294,13 @@ for (response_name in names(response_formulas)) {
 kable(summary_table, format = "markdown", digits = 3, caption = "Cross-Validation Results")
 
 # ---- beta-fitting ----
-#Initialize a data frame to store summary results for all models
-model_results <- data.frame(
-  Response = character(),
-  Term = character(),
-  Coefficient = numeric(),
-  Std_Error = numeric(),
-  P_Value = numeric(),
-  stringsAsFactors = FALSE
-)
 
-#Fit models and extract results
-for (response_name in names(response_formulas)) {
-  #Get the formula for the current response variable
-  current_formula <- response_formulas[[response_name]]
-  
-  #Fit the beta regression model on the training data
-  beta_model <- betareg(current_formula, data = train)
-  
-  #Extract model results (coefficients, standard errors, and p-values)
-  tidy_model <- tidy(beta_model) %>%
-    select(term, estimate, std.error, p.value) %>%
-    rename(
-      Coefficient = estimate,
-      Std_Error = std.error,
-      P_Value = p.value
-    )
-  
-  #Add the response variable name to the results
-  tidy_model <- tidy_model %>%
-    mutate(Response = response_name)
-  
-  #Append the results to the main results data frame
-  model_results <- bind_rows(model_results, tidy_model)
-}
-
-#Create a publication-ready summary table
-kable(model_results, format = "markdown", digits = 3, caption = "Model Results")
-
+#Fit Give model
 give_beta_model <- betareg(response_formulas$`Give I`, data = train)
 summary(give_beta_model)
 vif(give_beta_model)
 
+#Get summary of Give model coefficients
 give_beta_summary <- tidy(give_beta_model) %>%
   select(term, estimate, std.error, p.value) %>%
   rename(Coefficent = estimate,
@@ -365,10 +308,12 @@ give_beta_summary <- tidy(give_beta_model) %>%
          p_value = p.value) %>%
   mutate(Response = "Give I")
 
+#Fit Muenchen model
 muenchen_beta_model <- betareg(response_formulas$`Muenchen I`, data = train)
 summary(muenchen_beta_model)
 vif(muenchen_beta_model)
 
+#Get summary of Muenchen coefficients
 muenchen_beta_summary <- tidy(muenchen_beta_model) %>%
   select(term, estimate, std.error, p.value) %>%
   rename(Coefficent = estimate,
@@ -376,10 +321,14 @@ muenchen_beta_summary <- tidy(muenchen_beta_model) %>%
          p_value = p.value) %>%
   mutate(Response = "Muenchen I")
 
+#Tried to fit a beta model for Rubislaw, model failed to run without error
+
+#Fit Typhimurium model
 typhimurium_beta_model <- betareg(response_formulas$Typhimurium, data = train)
 summary(typhimurium_beta_model)
 vif(typhimurium_beta_model)
 
+#Get summary of Typhimurium coefficients
 typhimurium_beta_summary <- tidy(typhimurium_beta_model) %>%
   select(term, estimate, std.error, p.value) %>%
   rename(Coefficent = estimate,
@@ -387,48 +336,18 @@ typhimurium_beta_summary <- tidy(typhimurium_beta_model) %>%
          p_value = p.value) %>%
   mutate(Response = "Typhimurium")
 
+#Combine summaries
 beta_model_results <- rbind(give_beta_summary, muenchen_beta_summary, typhimurium_beta_summary) %>%
   select(Response, term, Coefficent, Std_Error, p_value) %>%
   filter(p_value <= 0.05)
 
 beta_model_results
 
-#Refit each model using significant predictors
-final_give_beta_model <- betareg(`Give I` ~ `Total Rain(in)_std` + System + `Avg Relative Humidity(%)_std` +
-                                  `Total Solar Radiation(MJ/m^2)_std` + Interaction_Humidity_Rain + 
-                                   Interaction_Solar_Rain, data = train)
+#Fit null models
+give_beta_null <- betareg(`Give I` ~ 1, data = train)
+muenchen_beta_null <- betareg(`Muenchen I` ~ 1, data = train)
+typhimurium_beta_null <- betareg(Typhimurium ~ 1, data = train)
 
-final_muenchen_beta_model <- betareg(`Muenchen I` ~ 1, data = train) #Just a null model :/
-
-final_typhimurium_model <- betareg(Typhimurium ~ `Total Rain(in)_std`, data = train)
-
-#Re-do summaries
-give_beta_summary <- tidy(give_beta_model) %>%
-  select(term, estimate, std.error, p.value) %>%
-  rename(Coefficent = estimate,
-         Std_Error = std.error,
-         p_value = p.value) %>%
-  mutate(Response = "Give I")
-
-muenchen_beta_summary <- tidy(muenchen_beta_model) %>%
-  select(term, estimate, std.error, p.value) %>%
-  rename(Coefficent = estimate,
-         Std_Error = std.error,
-         p_value = p.value) %>%
-  mutate(Response = "Muenchen I")
-
-typhimurium_beta_summary <- tidy(typhimurium_beta_model) %>%
-  select(term, estimate, std.error, p.value) %>%
-  rename(Coefficent = estimate,
-         Std_Error = std.error,
-         p_value = p.value) %>%
-  mutate(Response = "Typhimurium")
-
-beta_model_results <- rbind(give_beta_summary, muenchen_beta_summary, typhimurium_beta_summary) %>%
-  select(Response, term, Coefficent, Std_Error, p_value) %>%
-  filter(p_value <= 0.05)
-
-beta_model_results
 
 #Extract RMSE and R-squared, compare
 #Initalize summary table
@@ -440,9 +359,13 @@ summary_table <- data.frame(
 )
 
 #Make list of beta models
-beta_models <- list(give_beta_model = give_beta_model, 
-                    typhimurium_beta_model = typhimurium_beta_model, 
-                    muenchen_beta_model = muenchen_beta_model)
+beta_models <- list(give_beta_model = give_beta_model,
+                    give_beta_null  = give_beta_null,
+                    muenchen_beta_model = muenchen_beta_model,
+                    muenchen_beta_null = muenchen_beta_null,
+                    typhimurium_beta_model = typhimurium_beta_model,
+                    typhimurium_beta_null = typhimurium_beta_null
+                    )
 
 #Loop through the models to calculate metrics
 for (model_name in names(beta_models)) {
@@ -470,9 +393,50 @@ for (model_name in names(beta_models)) {
 }
 
 kable(summary_table, format = "markdown", caption = "Summary of Beta Regression Models")
+#Models only performed slightly better than the null models
 
+#Make same transformations to testing data
+#Standardize the predictors involved in interaction
+test$`Max Air Temperature(F)_std` <- as.numeric(scale(test$`Max Air Temperature(F)`))
+test$`Min Air Temperature(F)_std` <- as.numeric(scale(test$`Min Air Temperature(F)`))
+test$`Avg Relative Humidity(%)_std` <- as.numeric(scale(test$`Avg Relative Humidity(%)`))
+test$`Total Solar Radiation(MJ/m^2)_std` <- as.numeric(scale(test$`Total Solar Radiation(MJ/m^2)`))
+test$`Total Rain(in)_std` <- as.numeric(scale(test$`Total Rain(in)`))
 
+#Recalculate interaction terms using standardized predictors
+test$Interaction_Temp <- test$`Max Air Temperature(F)_std` * test$`Min Air Temperature(F)_std`
+test$Interaction_Humidity_Rain <- test$`Avg Relative Humidity(%)_std` * test$`Total Rain(in)_std`
+test$Interaction_Solar_Rain <- test$`Total Solar Radiation(MJ/m^2)_std` * test$`Total Rain(in)_std`
 
+#Make predictions using testing data
+give_beta_preds <- predict(give_beta_model, newdata = test, type = "response")
+muenchen_beta_preds <- predict(muenchen_beta_model, newdata = test, type = "response")
+typhimurium_beta_preds <- predict(typhimurium_beta_model, newdata = test, type = "response")
+
+#Combine results with testing data
+give_beta_results <- test %>%
+  mutate(predicted = give_beta_preds, actual = `Give I`)
+
+muenchen_beta_results <- test %>%
+  mutate(predicted = muenchen_beta_preds, actual = `Muenchen I`)
+
+typhimurium_beta_results <- test %>%
+  mutate(predicted = typhimurium_beta_preds, actual = Typhimurium)
+
+#Get metrics
+give_beta_metrics <- give_beta_results %>%
+  metrics(truth = actual, estimate = predicted)
+
+muenchen_beta_metrics <- muenchen_beta_results %>%
+  metrics(truth = actual, estimate = predicted)
+
+typhimurium_beta_metrics <- typhimurium_beta_results %>%
+  metrics(truth = actual, estimate = predicted)
+
+#Print metrics
+give_beta_metrics
+muenchen_beta_metrics
+typhimurium_beta_metrics
 
 # ---- prop-random-forest-fitting ----
 #Cross-validation
@@ -553,7 +517,11 @@ collect_metrics(muenchen_null_results)
 collect_metrics(rubislaw_null_results)
 collect_metrics(typhimurium_null_results)
 
-#Models did not perform better than null models
+#Fit the random forest workflows to training data
+give_regrf_fit <- fit(give_regrf_wf, data = train)
+muenchen_regrf_fit <- fit(muenchen_regrf_wf, data = train)
+rubislaw_regrf_fit <- fit(rubislaw_regrf_wf, data = train)
+typhimurium_regrf_fit <- fit(typhimurium_regrf_wf, data = train)
 
 # ---- logistic-regression-fitting ----
 #Cross-validation
@@ -575,6 +543,7 @@ rubislaw_log_metrics
 typhimurium_log_metrics
 
 #Compare to null model 
+#Define null model
 null_class_mod <- null_model() %>%
   set_engine("parsnip") %>%
   set_mode("classification")
@@ -652,50 +621,6 @@ summary(pull_workflow_fit(muenchen_log_fit)$fit)
 summary(pull_workflow_fit(rubislaw_log_fit)$fit)
 summary(pull_workflow_fit(typhimurium_log_fit)$fit)
  
-#Drop insignificant predictors
-give_log_reg <- recipe(data = train, `Give I Prev` ~ `Total Rain(in)` + `Aqua/Inverness Prev` + System + `Avg Relative Humidity(%)` +
-                         `Total Solar Radiation(MJ/m^2)`) %>%
-  step_dummy(all_nominal_predictors()) %>%
-  step_interact(~ `Avg Relative Humidity(%)`:`Total Rain(in)` + 
-                `Total Rain(in)`:`Total Solar Radiation(MJ/m^2)`)
-
-muenchen_log_reg <- recipe(data = train, `Muenchen I Prev` ~ `Min Air Temperature(F)` + `Max Air Temperature(F)` + 
-                             `Aqua/Inverness Prev` + `Infantis Prev`) %>%
-  step_interact(~ `Min Air Temperature(F)`:`Max Air Temperature(F)`)
-
-rubislaw_log_reg <- recipe(data = train, `Rubislaw Prev` ~ System)
-
-typhimurium_log_reg <- recipe(data = train, `Typhimurium Prev` ~ System)
-
-#Update workflows
-give_log_wf <- workflow() %>%
-  add_recipe(give_log_reg) %>%
-  add_model(log_reg)
-
-muenchen_log_wf <- workflow() %>%
-  add_recipe(muenchen_log_reg) %>%
-  add_model(log_reg)
-
-rubislaw_log_wf <- workflow() %>%
-  add_recipe(rubislaw_log_reg) %>%
-  add_model(log_reg)
-
-typhimurium_log_wf <- workflow() %>%
-  add_recipe(typhimurium_log_reg) %>%
-  add_model(log_reg)
-
-#Fit revised models to training data
-give_log_fit <- fit(give_log_wf, data = train)
-muenchen_log_fit <- fit(muenchen_log_wf, data = train)
-rubislaw_log_fit <- fit(rubislaw_log_wf, data = train)
-typhimurium_log_fit <- fit(typhimurium_log_wf, data = train)
-
-#Extract and summarize the fitted models
-summary(pull_workflow_fit(give_log_fit)$fit)
-summary(pull_workflow_fit(muenchen_log_fit)$fit)
-summary(pull_workflow_fit(rubislaw_log_fit)$fit)
-summary(pull_workflow_fit(typhimurium_log_fit)$fit)
-
 #Make predictions from each model using the training data
 give_log_train_preds <- predict(give_log_fit, new_data = train, type = "class")
 give_log_train_prob_preds <- predict(give_log_fit, new_data = train, type = "prob")
@@ -793,3 +718,123 @@ log_testing_results <- data.frame(
   Accuracy = c(give_accuracy_test$.estimate, muenchen_accuracy_test$.estimate, rubislaw_accuracy_test$.estimate, typhimurium_accuracy_test$.estimate),
   ROC_AUC = c(give_roc_auc_test$.estimate, muenchen_roc_auc_test$.estimate, rubislaw_roc_auc_test$.estimate, typhimurium_roc_auc_test$.estimate)
 )
+
+# ---- model-interpretation ----
+# -- Logistic Regression Interpretation --
+#Create explainers for logistic regression models
+give_log_explainer <- explain_tidymodels(
+  give_log_fit,
+  data = train %>% select(-`Give I Prev`), #Exclude response variable from data
+  y = as.numeric(train$`Give I Prev`), #Provide the response variable
+  label = "Give I Logistic Regression"
+)
+
+muenchen_log_explainer <- explain_tidymodels(
+  muenchen_log_fit,
+  data = train %>% select(-`Muenchen I Prev`),
+  y = as.numeric(train$`Muenchen I Prev`),
+  label = "Muenchen I Logistic Regression"
+)
+
+rubislaw_log_explainer <- explain_tidymodels(
+  rubislaw_log_fit,
+  data = train %>% select(-`Rubislaw Prev`),
+  y = as.numeric(train$`Rubislaw Prev`),
+  label = "Rubislaw Logistic Regression"
+)
+
+typhimurium_log_explainer <- explain_tidymodels(
+  typhimurium_log_fit,
+  data = train %>% select(-`Typhimurium Prev`),
+  y = as.numeric(train$`Typhimurium Prev`),
+  label = "Typhimurium Logistic Regression"
+)
+
+# -- Beta Regression Interpretation --
+# Create explainers for beta regression models
+give_beta_explainer <- explain(
+  model = give_beta_model,
+  data = train %>% select(-`Give I`),  #Exclude response variable from data
+  y = train$`Give I`,                 #Provide the response variable
+  label = "Give I Beta Regression"
+)
+
+muenchen_beta_explainer <- explain(
+  model = muenchen_beta_model,
+  data = train %>% select(-`Muenchen I`),
+  y = train$`Muenchen I`,
+  label = "Muenchen I Beta Regression"
+)
+
+typhimurium_beta_explainer <- explain(
+  model = typhimurium_beta_model,
+  data = train %>% select(-Typhimurium),
+  y = train$Typhimurium,
+  label = "Typhimurium Beta Regression"
+)
+
+# -- Random Forest Interpretation --
+# Create explainers for random forest models
+give_rf_explainer <- explain_tidymodels(
+  give_regrf_fit,
+  data = train %>% select(-`Give I`),
+  y = train$`Give I`,
+  label = "Give I Random Forest"
+)
+
+muenchen_rf_explainer <- explain_tidymodels(
+  muenchen_regrf_fit,
+  data = train %>% select(-`Muenchen I`),
+  y = train$`Muenchen I`,
+  label = "Muenchen I Random Forest"
+)
+
+rubislaw_rf_explainer <- explain_tidymodels(
+  rubislaw_regrf_fit,
+  data = train %>% select(-Rubislaw),
+  y = train$Rubislaw,
+  label = "Rubislaw Random Forest"
+)
+
+typhimurium_rf_explainer <- explain_tidymodels(
+  typhimurium_regrf_fit,
+  data = train %>% select(-Typhimurium),
+  y = train$Typhimurium,
+  label = "Typhimurium Random Forest"
+)
+
+# -- Feature Importance --
+# Logistic Regression
+vip(give_log_fit, geom = "point") + ggtitle("Variable Importance: Give I Logistic Regression")
+vip(muenchen_log_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Logistic Regression")
+vip(rubislaw_log_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Logistic Regression")
+vip(typhimurium_log_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Logistic Regression")
+
+# Beta Regression
+vip(give_beta_model, geom = "point") + ggtitle("Variable Importance: Give I Beta Regression")
+vip(muenchen_beta_model, geom = "point") + ggtitle("Variable Importance: Muenchen I Beta Regression")
+vip(typhimurium_beta_model, geom = "point") + ggtitle("Variable Importance: Typhimurium Beta Regression")
+
+# Random Forest
+vip(give_regrf_fit, geom = "point") + ggtitle("Variable Importance: Give I Random Forest")
+vip(muenchen_regrf_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Random Forest")
+vip(rubislaw_regrf_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Random Forest")
+vip(typhimurium_regrf_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Random Forest")
+
+# -- Residual Analysis --
+# Logistic Regression
+plot(model_performance(give_log_explainer)) + ggtitle("Residuals: Give I Logistic Regression")
+plot(model_performance(muenchen_log_explainer)) + ggtitle("Residuals: Muenchen I Logistic Regression")
+plot(model_performance(rubislaw_log_explainer)) + ggtitle("Residuals: Rubislaw Logistic Regression")
+plot(model_performance(typhimurium_log_explainer)) + ggtitle("Residuals: Typhimurium Logistic Regression")
+
+# Beta Regression
+plot(model_performance(give_beta_explainer)) + ggtitle("Residuals: Give I Beta Regression")
+plot(model_performance(muenchen_beta_explainer)) + ggtitle("Residuals: Muenchen I Beta Regression")
+plot(model_performance(typhimurium_beta_explainer)) + ggtitle("Residuals: Typhimurium Beta Regression")
+
+# Random Forest
+plot(model_performance(give_rf_explainer)) + ggtitle("Residuals: Give I Random Forest")
+plot(model_performance(muenchen_rf_explainer)) + ggtitle("Residuals: Muenchen I Random Forest")
+plot(model_performance(rubislaw_rf_explainer)) + ggtitle("Residuals: Rubislaw Random Forest")
+plot(model_performance(typhimurium_rf_explainer)) + ggtitle("Residuals: Typhimurium Random Forest")
