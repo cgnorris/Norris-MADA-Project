@@ -13,6 +13,10 @@ library(car)
 library(vip)
 library(DALEX)
 library(DALEXtra)
+library(pROC)
+library(kableExtra)
+library(webshot)
+library(cowplot)
 
 #Load data
 df <- readRDS("data/processed-data/processeddata.rds")
@@ -202,7 +206,7 @@ typhimurium_regrf_wf <- workflow() %>%
   add_recipe(typhimurium_prop) %>%
   add_model(rf_reg_model)
 
-## ---- beta-regression-CV ----
+# ---- beta-regression-CV ----
 #Standardize the predictors involved in interaction
 train$`Max Air Temperature(F)_std` <- as.numeric(scale(train$`Max Air Temperature(F)`))
 train$`Min Air Temperature(F)_std` <- as.numeric(scale(train$`Min Air Temperature(F)`))
@@ -339,9 +343,13 @@ typhimurium_beta_summary <- tidy(typhimurium_beta_model) %>%
 #Combine summaries
 beta_model_results <- rbind(give_beta_summary, muenchen_beta_summary, typhimurium_beta_summary) %>%
   select(Response, term, Coefficent, Std_Error, p_value) %>%
-  filter(p_value <= 0.05)
+  filter(p_value <= 0.05) %>%
+  filter(term != "(phi)")
 
-beta_model_results
+kable(beta_model_results, format = "html", digits = 3, caption = "Significant Coefficients in Beta Regression Models") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  save_kable("results/tables/Table4.png", zoom = 2)
+
 
 #Fit null models
 give_beta_null <- betareg(`Give I` ~ 1, data = train)
@@ -393,6 +401,9 @@ for (model_name in names(beta_models)) {
 }
 
 kable(summary_table, format = "markdown", caption = "Summary of Beta Regression Models")
+kable(summary_table, format = "html", digits = 3, caption = "Beta Regression Model Performance Summary") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  save_kable("results/tables/Table2.png", zoom = 2)
 #Models only performed slightly better than the null models
 
 #Make same transformations to testing data
@@ -804,22 +815,39 @@ typhimurium_rf_explainer <- explain_tidymodels(
 )
 
 # -- Feature Importance --
-# Logistic Regression
-vip(give_log_fit, geom = "point") + ggtitle("Variable Importance: Give I Logistic Regression")
-vip(muenchen_log_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Logistic Regression")
-vip(rubislaw_log_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Logistic Regression")
-vip(typhimurium_log_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Logistic Regression")
+#Logistic Regression
+give_log_imp <- vip(give_log_fit, geom = "point") + ggtitle("Variable Importance: Give I Logistic Regression")
+muen_log_imp <- vip(muenchen_log_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Logistic Regression")
+rubi_log_imp <- vip(rubislaw_log_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Logistic Regression")
+typh_log_imp <- vip(typhimurium_log_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Logistic Regression")
 
-# Beta Regression
-vip(give_beta_model, geom = "point") + ggtitle("Variable Importance: Give I Beta Regression")
-vip(muenchen_beta_model, geom = "point") + ggtitle("Variable Importance: Muenchen I Beta Regression")
-vip(typhimurium_beta_model, geom = "point") + ggtitle("Variable Importance: Typhimurium Beta Regression")
+#Arrange plots in 2x2 grid
+log_importance_grid <- plot_grid(
+  give_log_imp, muen_log_imp, rubi_log_imp, typh_log_imp,
+  labels = c("A", "B", "C", "D"),
+  ncol = 2,
+  nrow = 2
+)
+
+#Save as figure 6
+ggsave("results/figures/Figure6.png", log_importance_grid, width = 50, height = 50)
 
 # Random Forest
-vip(give_regrf_fit, geom = "point") + ggtitle("Variable Importance: Give I Random Forest")
-vip(muenchen_regrf_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Random Forest")
-vip(rubislaw_regrf_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Random Forest")
-vip(typhimurium_regrf_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Random Forest")
+give_rf_imp <- vip(give_regrf_fit, geom = "point") + ggtitle("Variable Importance: Give I Random Forest")
+muen_rf_imp <- vip(muenchen_regrf_fit, geom = "point") + ggtitle("Variable Importance: Muenchen I Random Forest")
+rubi_rf_imp <- vip(rubislaw_regrf_fit, geom = "point") + ggtitle("Variable Importance: Rubislaw Random Forest")
+typh_rf_imp <- vip(typhimurium_regrf_fit, geom = "point") + ggtitle("Variable Importance: Typhimurium Random Forest")
+
+#Arrange plots in 2x2 grid
+rf_importance_grid <- plot_grid(
+  give_rf_imp, muen_rf_imp, rubi_rf_imp, typh_rf_imp,
+  labels = c("A", "B", "C", "D"),
+  ncol = 2,
+  nrow = 2
+)
+
+#Save as figure 7
+ggsave("results/figures/Figure7.png", rf_importance_grid, width = 50, height = 50)
 
 # -- Residual Analysis --
 # Logistic Regression
@@ -838,3 +866,113 @@ plot(model_performance(give_rf_explainer)) + ggtitle("Residuals: Give I Random F
 plot(model_performance(muenchen_rf_explainer)) + ggtitle("Residuals: Muenchen I Random Forest")
 plot(model_performance(rubislaw_rf_explainer)) + ggtitle("Residuals: Rubislaw Random Forest")
 plot(model_performance(typhimurium_rf_explainer)) + ggtitle("Residuals: Typhimurium Random Forest")
+
+# ---- extra-figure-creation ----
+#Function to generate ROC curves
+generate_roc_curve <- function(actual, predicted_probs, model_name) {
+  roc_curve <- roc(actual, predicted_probs)
+  ggroc(roc_curve) +
+    ggtitle(paste("ROC Curve for", model_name)) +
+    xlab("False Positive Rate") +
+    ylab("True Positive Rate") +
+    theme_minimal()
+}
+
+#Create ROC Curves for each logistic regression model
+give_roc_curve <- generate_roc_curve(test$`Give I Prev`, give_log_test_prob_preds$.pred_1, "Give I Logistic Regression")
+muenchen_roc_curve <- generate_roc_curve(test$`Muenchen I Prev`, muenchen_log_test_prob_preds$.pred_1, "Muenchen I Logistic Regression")
+rubislaw_roc_curve <- generate_roc_curve(test$`Rubislaw Prev`, rubislaw_log_test_prob_preds$.pred_1, "Rubislaw Logistic Regression")
+typhimurium_roc_curve <- generate_roc_curve(test$`Typhimurium Prev`, typhimurium_log_test_prob_preds$.pred_1, "Typhimurium Logistic Regression")
+
+#Save the plots
+ggsave("results/figures/give_roc_curve.png", give_roc_curve)
+ggsave("results/figures/muenchen_roc_curve.png", muenchen_roc_curve)
+ggsave("results/figures/rubislaw_roc_curve.png", rubislaw_roc_curve)
+ggsave("results/figures/typhimurium_roc_curve.png", typhimurium_roc_curve)
+
+#Arrange ROC curves in 2x2 grid
+roc_grid <- plot_grid(
+  give_roc_curve, muenchen_roc_curve, rubislaw_roc_curve, typhimurium_roc_curve,
+  labels = c("A", "B", "C", "D"),
+  ncol = 2,
+  nrow = 2
+)
+
+#Save combined plot as png file
+ggsave("results/figures/Figure4.png", roc_grid, width = 10, height = 10)
+
+#Function to create predicted vs. observed scatter plot
+create_scatter_plot <- function(actual, predicted, model_name) {
+  ggplot(data.frame(actual = actual, predicted = predicted), aes(x = actual, y = predicted)) +
+    geom_point(alpha = 0.5) +
+    geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+    ggtitle(paste("Predicted vs Actual:", model_name)) +
+    xlab("Actual Values") +
+    ylab("Predicted Values") +
+    theme_minimal()
+}
+
+#Scatter plots for beta regression models
+give_beta_scatter <- create_scatter_plot(test$`Give I`, give_beta_preds, "Give I Beta Regression")
+muenchen_beta_scatter <- create_scatter_plot(test$`Muenchen I`, muenchen_beta_preds, "Muenchen I Beta Regression")
+typhimurium_beta_scatter <- create_scatter_plot(test$Typhimurium, typhimurium_beta_preds, "Typhimurium Beta Regression")
+
+#Save the scatter plots
+ggsave("results/figures/give_beta_scatter.png", give_beta_scatter)
+ggsave("results/figures/muenchen_beta_scatter.png", muenchen_beta_scatter)
+ggsave("results/figures/typhimurium_beta_scatter.png", typhimurium_beta_scatter)
+
+#Arrange ROC curves in 2x2 grid
+scatter_grid <- plot_grid(
+  give_beta_scatter, muenchen_beta_scatter, typhimurium_beta_scatter,
+  labels = c("A", "B", "C"),
+  ncol = 1,
+  nrow = 3
+)
+
+#Save combined plot as png file
+ggsave("results/figures/Figure5.png", scatter_grid, width = 5, height = 10)
+
+
+#Combine training and testing metrics for log regression models
+log_summary <- data.frame(
+  Model = c("Give I", "Muenchen I", "Rubislaw", "Typhimurium"),
+  Training_Accuracy = log_training_results$Accuracy,
+  Training_ROC_AUC = log_training_results$ROC_AUC,
+  Testing_Accuracy = log_testing_results$Accuracy,
+  Testing_ROC_AUC = log_testing_results$ROC_AUC
+)
+
+#Save table as markdown
+kable(log_summary, format = "html", digits = 3, caption = "Logistic Regression Model Performance Summary") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  save_kable("results/tables/Table1.png", zoom = 2)
+
+
+#Function to extract metrics from the metrics object for the rf models
+extract_rf_metrics <- function(metrics_object, model_name) {
+  data.frame(
+    Model = model_name,
+    RMSE = metrics_object %>% filter(.metric == "rmse") %>% pull(mean),
+    R_Squared = metrics_object %>% filter(.metric == "rsq") %>% pull(mean)
+  )
+}
+
+# Extract metrics for each random forest model
+give_rf_metrics <- extract_rf_metrics(give_prop_rf_metrics, "Give I Random Forest")
+muenchen_rf_metrics <- extract_rf_metrics(muenchen_prop_rf_metrics, "Muenchen I Random Forest")
+rubislaw_rf_metrics <- extract_rf_metrics(rubislaw_prop_rf_metrics, "Rubislaw Random Forest")
+typhimurium_rf_metrics <- extract_rf_metrics(typhimurium_prop_rf_metrics, "Typhimurium Random Forest")
+
+# Combine all metrics into a single data frame
+rf_summary <- bind_rows(
+  give_rf_metrics,
+  muenchen_rf_metrics,
+  rubislaw_rf_metrics,
+  typhimurium_rf_metrics
+)
+
+# Save table as markdown
+kable(rf_summary, format = "html", digits = 3, caption = "Random Forest Model Performance Summary") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  save_kable("results/tables/Table3.png", zoom = 2)

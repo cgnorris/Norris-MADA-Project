@@ -36,6 +36,7 @@ numeric_vars %>%
   facet_wrap(~ variable, scales = "free") +
   labs(title = "Distributions of Numeric Variables") +
   theme_minimal()
+ggsave("results/supplemental/numeric-histogram.png")
 
 #Boxplots for numeric variables
 numeric_vars %>%
@@ -46,6 +47,7 @@ numeric_vars %>%
   coord_flip() +
   labs(title = "Boxplots of Numeric Variables") +
   theme_minimal()
+ggsave("results/supplemental/numeric-boxplot.png")
 
 ## ---- categorical-data-exploration ----
 #Create data frame for categorical variables
@@ -62,7 +64,7 @@ cat_vars %>%
   facet_wrap(~ variable, scales = "free") +
   coord_flip() +
   theme_minimal() +
-  labs(title = "Categorical Variable Distributions", x = "Value", y = "Count")
+  labs(title = "Categorical Variable Distributions", x = "Value", y = "Count", fill = "Variable")
 #Note: The highest number of positive samples here were in spring, system C, and in June of 2022,
 #August of 2023, and October of 2023
 
@@ -73,19 +75,15 @@ ggsave("results/figures/Figure1.png", last_plot())
 #Create correlation matrix using continuous data
 corr <- cor(numeric_vars)
 corr
-#Create correlation plot from matrix
-corrplot <- {
-  corrplot(corr, 
-           title = "Correlation Matrix of Weather Variables and Serovars",
-           mar = c(0, 0, 1, 0),
-           number.cex = 0.5,
-           number.digits = 2);
-  recordPlot()
-}
 
-#Save correlation plot as Figure 2
-ggsave(filename = "results/figures/Figure2.png", plot = replayPlot(corrplot))
-
+#Create correlation plot from matrix and save it as a png
+png("results/figures/Figure3.png", width = 800, height = 800)
+corrplot(corr, 
+         title = "Correlation Matrix of Weather Variables and Serovars",
+         mar = c(0, 0, 1, 0),
+         number.cex = 0.5,
+         number.digits = 2)
+dev.off()
 #Strong positive correlation between month and year - use year-month engineered variable
 #Strong positive correlation between min and max air temp - include interaction term
 #Strong positive correlation between total rain and avg humidity - include interaction term
@@ -105,20 +103,23 @@ scatterplotMatrix(numeric_vars_no_prev)
 
 #Create individual plots for variables that seem to have interactions from the matrix
 #Max vs. Min Temp
-ggplot(processed_data, aes(x = `Min Air Temperature(F)`, y = `Max Air Temperature(F)`)) +
+ggplot(data, aes(x = `Min Air Temperature(F)`, y = `Max Air Temperature(F)`)) +
   geom_point() +
   geom_smooth(method = lm) +
   theme_minimal()
+ggsave("results/supplemental/max-vs-min-temp.png")
 
 #Humidity vs. Rain
-ggplot(processed_data, aes(x = `Avg Relative Humidity(%)`, y = `Total Rain(in)`)) +
+ggplot(data, aes(x = `Avg Relative Humidity(%)`, y = `Total Rain(in)`)) +
   geom_point() +
   geom_smooth(method = lm) +
   theme_minimal()
+ggsave("results/supplemental/rain-vs-humidity.png")
 #Many zeros for rain - interaction may not be significant
 
 #Rain and solar radiation
-ggplot(processed_data, aes(x = `Total Solar Radiation(MJ/m^2)`, y = `Total Rain(in)`)) +
+ggplot(data, aes(x = `Total Solar Radiation(MJ/m^2)`, y = `Total Rain(in)`)) +
   geom_point() +
   geom_smooth(method = lm) +
   theme_minimal()
+ggsave("results/supplemental/rain-vs-radiation.png")

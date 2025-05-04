@@ -81,21 +81,6 @@ serovar_cols <- colnames(css)[-(1:5)]
 css <- css %>%
   mutate(across(all_of(serovar_cols), ~ if(is.character(.)) as.numeric(.) else .))
 
-#Find serovars present in each system
-# serovars_in_systems <- css %>%
-#   group_by(System) %>%
-#   summarise(across(all_of(serovar_cols), ~ any(. > 0), .names = "present_{.col}")) %>%
-#   summarise(across(starts_with("present_"), all))  #Keep only serovars found in all systems
-# 
-# #Extract serovar names present in all 4 systems
-# common_serovars <- names(serovars_in_systems)[which(serovars_in_systems[1, ]==TRUE)]
-# common_serovars <- gsub("present_", "", common_serovars) #Remove prefix to get original name
-# common_serovars #Display common serovar names
-# 
-# #Filter based on common serovars
-# css <- css %>%
-#   select(1:5, all_of(common_serovars)
-
 #Compute correlation matrix for serovars to find co-occurring serovars
 sero_only <- as.matrix(select(css, -c(ID, Month, Site, System, Season))) #Only serovar proportions
 sero_corr <- psych::corr.test(sero_only, method = "spearman")
